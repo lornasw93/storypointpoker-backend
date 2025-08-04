@@ -1,6 +1,6 @@
-# Pontify Backend
+# Story Point Poker Backend
 
-Node.js backend API for the Pontify Planning Poker application.
+Node.js backend API for the Story Point Poker application.
 
 ## Features
 
