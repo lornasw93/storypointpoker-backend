@@ -16,6 +16,7 @@ const app = express();
 const server = createServer(app);
 
 const corsOptions = {
+  //origin: process.env.CORS_ORIGIN || 'http://localhost:4200',
   origin: process.env.CORS_ORIGIN || 'https://storypointpoker.netlify.app',
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
@@ -49,13 +50,13 @@ app.use((req, res, next) => {
 });
 
 app.get('/health', (req, res) => {
-  res.json({ 
-    success: true, 
-    data: { 
-      status: 'OK', 
+  res.json({
+    success: true,
+    data: {
+      status: 'OK',
       timestamp: new Date().toISOString(),
       uptime: process.uptime()
-    } 
+    }
   });
 });
 
@@ -63,12 +64,12 @@ app.use('/api/rooms', roomRoutes);
 
 io.on('connection', (socket) => {
   console.log(`User connected: ${socket.id}`);
-  
+
   socket.on('join-room', async (data: { roomId: string; userId: string }) => {
     try {
       const { roomId, userId } = data;
       console.log(`Attempting to join room: ${roomId} with user: ${userId}`);
-      
+
       // Verify user exists in room
       const room = roomService.getRoom(roomId);
       if (!room || !room.users.has(userId)) {
@@ -77,17 +78,17 @@ io.on('connection', (socket) => {
         return;
       }
 
-      // Track socket connection
+      // Track socket connection and mark user as connected
       console.log(`Setting user socket: ${userId} -> ${socket.id}`);
       roomService.setUserSocket(userId, socket.id);
 
       // Join socket room
       await socket.join(roomId);
-      
+
       // Notify room of user join/reconnection
       const roomSummary = roomService.getRoomSummary(roomId);
       const users = roomService.getUsersInRoom(roomId);
-      
+
       socket.to(roomId).emit('user-joined', {
         user: room.users.get(userId),
         room: roomSummary,
@@ -111,14 +112,14 @@ io.on('connection', (socket) => {
   socket.on('leave-room', async (data: { roomId: string; userId: string }) => {
     try {
       const { roomId, userId } = data;
-      
+
       await socket.leave(roomId);
-      
+
       const success = roomService.leaveRoom(roomId, userId);
       if (success) {
         const roomSummary = roomService.getRoomSummary(roomId);
         const users = roomService.getUsersInRoom(roomId);
-        
+
         socket.to(roomId).emit('user-left', {
           userId,
           room: roomSummary,
@@ -135,7 +136,7 @@ io.on('connection', (socket) => {
   socket.on('start-estimation', (data: { roomId: string; userId: string }) => {
     try {
       const { roomId, userId } = data;
-      
+
       const room = roomService.getRoom(roomId);
       if (!room) {
         socket.emit('error', { message: 'Room not found' });
@@ -158,7 +159,7 @@ io.on('connection', (socket) => {
 
       const users = roomService.getUsersInRoom(roomId);
       const results = roomService.getVotingResults(roomId);
-      
+
       // Notify all users in room that estimation has started
       io.to(roomId).emit('estimation-started', {
         users,
@@ -176,14 +177,14 @@ io.on('connection', (socket) => {
     try {
       const { roomId, userId, estimate } = data;
       console.log(`Vote submitted: User ${userId} voted ${estimate} in room ${roomId}`);
-      
+
       const success = roomService.submitVote(roomId, userId, estimate);
       if (success) {
         const users = roomService.getUsersInRoom(roomId);
         const results = roomService.getVotingResults(roomId);
-        
+
         console.log('Updated users after vote:', users.map(u => ({ id: u.id, name: u.name, estimate: u.estimate, hasVoted: u.hasVoted })));
-        
+
         // Notify all users in room
         io.to(roomId).emit('vote-submitted', {
           userId,
@@ -203,22 +204,22 @@ io.on('connection', (socket) => {
     try {
       const { roomId, userId } = data;
       console.log(`Revealing votes in room ${roomId} by admin ${userId}`);
-      
+
       const success = roomService.revealVotes(roomId, userId);
       if (success) {
         const votingResults = roomService.getVotingResults(roomId);
         console.log('Full voting results from service:', votingResults);
-        
+
         if (votingResults) {
           const eventData = {
             revealed: votingResults.revealed,
             votes: votingResults.votes,  // This contains users with estimates now revealed
             summary: votingResults.summary
           };
-          
+
           console.log('Sending votes-revealed event with data:', eventData);
           console.log('Votes with estimates:', eventData.votes.map(u => ({ id: u.id, name: u.name, estimate: u.estimate, hasVoted: u.hasVoted })));
-          
+
           // Notify all users in room
           io.to(roomId).emit('votes-revealed', eventData);
         } else {
@@ -236,12 +237,12 @@ io.on('connection', (socket) => {
   socket.on('reset-voting', (data: { roomId: string; userId: string }) => {
     try {
       const { roomId, userId } = data;
-      
+
       const success = roomService.resetVoting(roomId, userId);
       if (success) {
         const users = roomService.getUsersInRoom(roomId);
         const results = roomService.getVotingResults(roomId);
-        
+
         // Notify all users in room
         io.to(roomId).emit('voting-reset', {
           users,
@@ -259,11 +260,11 @@ io.on('connection', (socket) => {
   socket.on('update-story', (data: { roomId: string; userId: string; title: string; description: string }) => {
     try {
       const { roomId, userId, title, description } = data;
-      
+
       const success = roomService.updateStory(roomId, userId, { title, description });
       if (success) {
         const roomSummary = roomService.getRoomSummary(roomId);
-        
+
         // Notify all users in room
         io.to(roomId).emit('story-updated', {
           story: { title, description },
@@ -280,21 +281,19 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     console.log(`User disconnected: ${socket.id}`);
-    
+
     // Find the user associated with this socket and mark as disconnected
     const userId = roomService.getUserBySocketId(socket.id);
     if (userId) {
       console.log(`Marking user ${userId} as disconnected`);
+      const userRoom = roomService.getRoomByUserId(userId);
       roomService.removeUserSocket(socket.id);
-      
-      // Find which room this user was in and notify other users
-      const rooms = Array.from(socket.rooms);
-      rooms.forEach(roomId => {
-        if (roomId !== socket.id) { // Skip the socket's own room
-          const users = roomService.getUsersInRoom(roomId);
-          socket.to(roomId).emit('user-disconnected', { userId, users });
-        }
-      });
+
+      if (userRoom) {
+        const users = roomService.getUsersInRoom(userRoom.id);
+        // Use io.to() instead of socket.to() to ensure all clients get the update
+        io.to(userRoom.id).emit('user-disconnected', { userId, users });
+      }
     }
   });
 
@@ -311,6 +310,7 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`🚀 SPP Backend Server running on port ${PORT}`);
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+  //console.log(`🌐 CORS origin: ${process.env.CORS_ORIGIN || 'http://localhost:4200'}`);
   console.log(`🌐 CORS origin: ${process.env.CORS_ORIGIN || 'https://storypointpoker.netlify.app'}`);
 });
 

@@ -320,6 +320,15 @@ class RoomService {
     return this.socketUsers.get(socketId) || null;
   }
 
+  getRoomByUserId(userId: string): Room | null {
+    for (const room of this.rooms.values()) {
+      if (room.users.has(userId)) {
+        return room;
+      }
+    }
+    return null;
+  }
+
   private generateRoomId(): string {
     // Generate a 6-character room ID
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
