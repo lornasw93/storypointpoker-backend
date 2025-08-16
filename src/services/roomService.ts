@@ -165,8 +165,14 @@ class RoomService {
       return false;
     }
 
-    user.estimate = estimate;
-    user.hasVoted = true;
+    // If estimate is empty string, it means the vote is being cleared
+    if (estimate === '') {
+      user.estimate = undefined;
+      user.hasVoted = false;
+    } else {
+      user.estimate = estimate;
+      user.hasVoted = true;
+    }
     room.lastActivity = new Date();
     return true;
   }
