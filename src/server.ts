@@ -16,8 +16,8 @@ const app = express();
 const server = createServer(app);
 
 const corsOptions = {
-  //origin: process.env.CORS_ORIGIN || 'http://localhost:4200',
-  origin: process.env.CORS_ORIGIN || 'https://storypointpoker.netlify.app',
+  origin: process.env.CORS_ORIGIN || 'http://localhost:4200',
+  //origin: process.env.CORS_ORIGIN || 'https://storypointpoker.netlify.app',
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true

@@ -243,19 +243,12 @@ class RoomService {
       return acc;
     }, {} as Record<string, number>);
 
-    const mostCommon = estimates.length > 0 
-      ? Object.keys(estimateCounts).reduce((a, b) => 
-          estimateCounts[a] > estimateCounts[b] ? a : b
-        )
-      : undefined;
-
     return {
       revealed: room.votingRevealed,
       votes,
       summary: {
         totalVotes: votedUsers.length,
         uniqueEstimates: Array.from(new Set(estimates)),
-        mostCommon
       }
     };
   }

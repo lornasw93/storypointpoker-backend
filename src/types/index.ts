@@ -74,6 +74,5 @@ export interface VotingResults {
   summary: {
     totalVotes: number;
     uniqueEstimates: string[];
-    mostCommon?: string;
   };
 }
