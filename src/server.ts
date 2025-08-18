@@ -308,10 +308,10 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 3000;
 
 server.listen(PORT, () => {
-  console.log(`🚀 SPP Backend Server running on port ${PORT}`);
-  console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-  //console.log(`🌐 CORS origin: ${process.env.CORS_ORIGIN || 'http://localhost:4200'}`);
-  console.log(`🌐 CORS origin: ${process.env.CORS_ORIGIN || 'https://storypointpoker.netlify.app'}`);
+  // console.log(`🚀 SPP Backend Server running on port ${PORT}`);
+  // console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+  // //console.log(`🌐 CORS origin: ${process.env.CORS_ORIGIN || 'http://localhost:4200'}`);
+  // console.log(`🌐 CORS origin: ${process.env.CORS_ORIGIN || 'https://storypointpoker.netlify.app'}`);
 });
 
 process.on('SIGTERM', () => {
