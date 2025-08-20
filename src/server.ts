@@ -25,8 +25,10 @@ const corsOptions = {
 
 const io = new SocketIOServer(server, {
   cors: corsOptions,
-  pingTimeout: 60000,
-  pingInterval: 25000
+  pingTimeout: 120000, // 2 minutes
+  pingInterval: 30000, // 30 seconds
+  transports: ['websocket', 'polling'],
+  allowEIO3: true
 });
 
 const limiter = rateLimit({
