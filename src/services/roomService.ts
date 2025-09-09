@@ -188,13 +188,8 @@ class RoomService {
       return false;
     }
 
-    console.log('Revealing votes for room:', roomId);
-    console.log('Users before reveal:', Array.from(room.users.values()).map(u => ({ id: u.id, name: u.name, estimate: u.estimate, hasVoted: u.hasVoted })));
-    
     room.votingRevealed = true;
     room.lastActivity = new Date();
-    
-    console.log('Room voting revealed set to:', room.votingRevealed);
     return true;
   }
 
@@ -259,7 +254,6 @@ class RoomService {
       return [];
     }
 
-    console.log('Getting users for room:', roomId, 'votingRevealed:', room.votingRevealed);
     const users = Array.from(room.users.values()).map(user => ({
       id: user.id,
       name: user.name,
@@ -268,42 +262,63 @@ class RoomService {
       estimate: room.votingRevealed ? user.estimate : undefined,
       connected: user.connected
     }));
-    console.log('Returning users:', users);
     
     return users;
   }
 
-  // Socket connection tracking methods
+  // Socket and connection tracking methods
+  private userSocketsMap: Map<string, Set<string>> = new Map(); // userId -> Set of socketIds
+
   setUserSocket(userId: string, socketId: string): void {
-    console.log(`Setting socket mapping: ${userId} -> ${socketId}`);
-    this.userSockets.set(userId, socketId);
+    // Add to socketUsers map
     this.socketUsers.set(socketId, userId);
     
-    // Mark user as connected
+    // Add to userSocketsMap (maintain multiple sockets per user)
+    if (!this.userSocketsMap.has(userId)) {
+      this.userSocketsMap.set(userId, new Set());
+    }
+    this.userSocketsMap.get(userId)?.add(socketId);
+    
+    // Mark user as connected since they have an active socket
     this.updateUserConnectionStatus(userId, true);
   }
 
-  removeUserSocket(socketId: string): string | null {
+  removeSocketMapping(socketId: string): void {
     const userId = this.socketUsers.get(socketId);
-    console.log(`Removing socket mapping: ${socketId} -> ${userId || 'not found'}`);
     if (userId) {
-      this.userSockets.delete(userId);
+      // Remove from socketUsers map
       this.socketUsers.delete(socketId);
       
-      // Mark user as disconnected
-      this.updateUserConnectionStatus(userId, false);
+      // Remove from userSocketsMap
+      const userSockets = this.userSocketsMap.get(userId);
+      if (userSockets) {
+        userSockets.delete(socketId);
+        if (userSockets.size === 0) {
+          this.userSocketsMap.delete(userId);
+        }
+      }
     }
-    return userId || null;
+  }
+
+  hasActiveSocket(userId: string): boolean {
+    const userSockets = this.userSocketsMap.get(userId);
+    return !!userSockets && userSockets.size > 0;
+  }
+
+  markUserDisconnected(userId: string): void {
+    this.updateUserConnectionStatus(userId, false);
   }
 
   private updateUserConnectionStatus(userId: string, connected: boolean): void {
-    console.log(`Updating connection status for user ${userId}: ${connected}`);
     for (const room of this.rooms.values()) {
       const user = room.users.get(userId);
       if (user) {
-        console.log(`Found user ${userId} in room ${room.id}, updating connected: ${connected}`);
+        const wasConnected = user.connected;
         user.connected = connected;
-        room.lastActivity = new Date();
+        
+        if (wasConnected !== connected) {
+          room.lastActivity = new Date();
+        }
         break;
       }
     }
@@ -350,7 +365,6 @@ class RoomService {
     });
 
     roomsToDelete.forEach(roomId => {
-      console.log(`Cleaning up inactive room: ${roomId}`);
       this.rooms.delete(roomId);
     });
   }

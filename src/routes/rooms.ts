@@ -7,7 +7,6 @@ const router = express.Router();
 
 // Create a new room
 router.post('/', (req: Request, res: Response<ApiResponse>) => {
-  console.log('### create new room')
   const { roomName, adminName } = req.body;
   
   if (!roomName || !adminName) {
@@ -34,7 +33,6 @@ router.post('/', (req: Request, res: Response<ApiResponse>) => {
 
 // Get room details
 router.get('/:roomId', validateRoomId, (req: Request, res: Response<ApiResponse>) => {
-  console.log('### get room details');
   const { roomId } = req.params;
   
   try {
@@ -61,7 +59,6 @@ router.get('/:roomId', validateRoomId, (req: Request, res: Response<ApiResponse>
 
 // Join a room
 router.post('/:roomId/join', validateRoomId, (req: Request, res: Response<ApiResponse>) => {
-  console.log('### join room');
   const { roomId } = req.params;
   const { userName, isAdmin }: RoomJoinRequest = req.body;
   
@@ -96,8 +93,6 @@ router.post('/:roomId/join', validateRoomId, (req: Request, res: Response<ApiRes
 
 // Leave a room
 router.delete('/:roomId/users/:userId', validateRoomId, validateUserId, (req: Request, res: Response<ApiResponse>) => {
-  console.log('### leave room');
-
   const { roomId, userId } = req.params;
   
   try {
@@ -124,8 +119,6 @@ router.delete('/:roomId/users/:userId', validateRoomId, validateUserId, (req: Re
 
 // Update room story
 router.put('/:roomId/story', validateRoomId, (req: Request, res: Response<ApiResponse>) => {
-  console.log('### update room story');
-
   const { roomId } = req.params;
   const { userId, title, description }: StoryUpdateRequest & { userId: string } = req.body;
   
@@ -160,8 +153,6 @@ router.put('/:roomId/story', validateRoomId, (req: Request, res: Response<ApiRes
 
 // Submit a vote
 router.post('/:roomId/vote', validateRoomId, (req: Request, res: Response<ApiResponse>) => {
-  console.log('### submit vote');
-
   const { roomId } = req.params;
   const { userId, estimate }: VoteSubmission = req.body;
   
@@ -196,8 +187,6 @@ router.post('/:roomId/vote', validateRoomId, (req: Request, res: Response<ApiRes
 
 // Reveal votes (admin only)
 router.post('/:roomId/reveal', validateRoomId, (req: Request, res: Response<ApiResponse>) => {
-  console.log('### reveal votes');
-
   const { roomId } = req.params;
   const { userId } = req.body;
   
@@ -232,8 +221,6 @@ router.post('/:roomId/reveal', validateRoomId, (req: Request, res: Response<ApiR
 
 // Reset voting (admin only)
 router.post('/:roomId/reset', validateRoomId, (req: Request, res: Response<ApiResponse>) => {
-  console.log('### reset voting');
-
   const { roomId } = req.params;
   const { userId } = req.body;
   
@@ -268,8 +255,6 @@ router.post('/:roomId/reset', validateRoomId, (req: Request, res: Response<ApiRe
 
 // Get voting results
 router.get('/:roomId/results', validateRoomId, (req: Request, res: Response<ApiResponse>) => {
-  console.log('### get voting results');
-
   const { roomId } = req.params;
   
   try {
@@ -296,8 +281,6 @@ router.get('/:roomId/results', validateRoomId, (req: Request, res: Response<ApiR
 
 // Get users in room
 router.get('/:roomId/users', validateRoomId, (req: Request, res: Response<ApiResponse>) => {
-  console.log('### get users in room');
-  
   const { roomId } = req.params;
   
   try {

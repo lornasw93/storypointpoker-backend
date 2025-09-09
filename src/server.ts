@@ -47,7 +47,6 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
   next();
 });
 
@@ -65,23 +64,18 @@ app.get('/health', (req, res) => {
 app.use('/api/rooms', roomRoutes);
 
 io.on('connection', (socket) => {
-  console.log(`User connected: ${socket.id}`);
-
   socket.on('join-room', async (data: { roomId: string; userId: string }) => {
     try {
       const { roomId, userId } = data;
-      console.log(`Attempting to join room: ${roomId} with user: ${userId}`);
 
       // Verify user exists in room
       const room = roomService.getRoom(roomId);
       if (!room || !room.users.has(userId)) {
-        console.log(`Invalid room or user: room exists: ${!!room}, user exists: ${room ? room.users.has(userId) : false}`);
         socket.emit('error', { message: 'Invalid room or user' });
         return;
       }
 
       // Track socket connection and mark user as connected
-      console.log(`Setting user socket: ${userId} -> ${socket.id}`);
       roomService.setUserSocket(userId, socket.id);
 
       // Join socket room
@@ -104,7 +98,14 @@ io.on('connection', (socket) => {
         results: roomService.getVotingResults(roomId)
       });
 
-      console.log(`User ${userId} joined room ${roomId} with socket ${socket.id}`);
+      // If estimation is already started, send the estimation-started event to the new user
+      if (room.estimationStarted) {
+        socket.emit('estimation-started', {
+          users,
+          results: roomService.getVotingResults(roomId)
+        });
+      }
+
     } catch (error) {
       console.error('Error joining room:', error);
       socket.emit('error', { message: 'Failed to join room' });
@@ -129,7 +130,6 @@ io.on('connection', (socket) => {
         });
       }
 
-      console.log(`User ${userId} left room ${roomId}`);
     } catch (error) {
       console.error('Error leaving room:', error);
     }
@@ -168,7 +168,6 @@ io.on('connection', (socket) => {
         results
       });
 
-      console.log(`Estimation started in room ${roomId} by admin ${userId}`);
     } catch (error) {
       console.error('Error starting estimation:', error);
       socket.emit('error', { message: 'Failed to start estimation' });
@@ -178,14 +177,11 @@ io.on('connection', (socket) => {
   socket.on('submit-vote', (data: { roomId: string; userId: string; estimate: string }) => {
     try {
       const { roomId, userId, estimate } = data;
-      console.log(`Vote submitted: User ${userId} voted ${estimate} in room ${roomId}`);
 
       const success = roomService.submitVote(roomId, userId, estimate);
       if (success) {
         const users = roomService.getUsersInRoom(roomId);
         const results = roomService.getVotingResults(roomId);
-
-        console.log('Updated users after vote:', users.map(u => ({ id: u.id, name: u.name, estimate: u.estimate, hasVoted: u.hasVoted })));
 
         // Notify all users in room
         io.to(roomId).emit('vote-submitted', {
@@ -205,22 +201,17 @@ io.on('connection', (socket) => {
   socket.on('reveal-votes', (data: { roomId: string; userId: string }) => {
     try {
       const { roomId, userId } = data;
-      console.log(`Revealing votes in room ${roomId} by admin ${userId}`);
 
       const success = roomService.revealVotes(roomId, userId);
       if (success) {
         const votingResults = roomService.getVotingResults(roomId);
-        console.log('Full voting results from service:', votingResults);
 
         if (votingResults) {
           const eventData = {
             revealed: votingResults.revealed,
-            votes: votingResults.votes,  // This contains users with estimates now revealed
+            votes: votingResults.votes,
             summary: votingResults.summary
           };
-
-          console.log('Sending votes-revealed event with data:', eventData);
-          console.log('Votes with estimates:', eventData.votes.map(u => ({ id: u.id, name: u.name, estimate: u.estimate, hasVoted: u.hasVoted })));
 
           // Notify all users in room
           io.to(roomId).emit('votes-revealed', eventData);
@@ -282,19 +273,24 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    console.log(`User disconnected: ${socket.id}`);
-
-    // Find the user associated with this socket and mark as disconnected
+    // Find the user associated with this socket and check if they have another active socket
     const userId = roomService.getUserBySocketId(socket.id);
     if (userId) {
-      console.log(`Marking user ${userId} as disconnected`);
       const userRoom = roomService.getRoomByUserId(userId);
-      roomService.removeUserSocket(socket.id);
+      
+      // Only remove the socket mapping
+      roomService.removeSocketMapping(socket.id);
 
-      if (userRoom) {
-        const users = roomService.getUsersInRoom(userRoom.id);
-        // Use io.to() instead of socket.to() to ensure all clients get the update
-        io.to(userRoom.id).emit('user-disconnected', { userId, users });
+      // Check if user has any other active sockets before marking as disconnected
+      const hasOtherActiveSockets = roomService.hasActiveSocket(userId);
+      
+      if (!hasOtherActiveSockets) {
+        roomService.markUserDisconnected(userId);
+
+        if (userRoom) {
+          const users = roomService.getUsersInRoom(userRoom.id);
+          io.to(userRoom.id).emit('user-disconnected', { userId, users });
+        }
       }
     }
   });
@@ -310,24 +306,16 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 3000;
 
 server.listen(PORT, () => {
-  // console.log(`🚀 SPP Backend Server running on port ${PORT}`);
-  // console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-  // //console.log(`🌐 CORS origin: ${process.env.CORS_ORIGIN || 'http://localhost:4200'}`);
-  // console.log(`🌐 CORS origin: ${process.env.CORS_ORIGIN || 'https://storypointpoker.netlify.app'}`);
 });
 
 process.on('SIGTERM', () => {
-  console.log('SIGTERM received, shutting down gracefully');
   server.close(() => {
-    console.log('Server closed');
     process.exit(0);
   });
 });
 
 process.on('SIGINT', () => {
-  console.log('SIGINT received, shutting down gracefully');
   server.close(() => {
-    console.log('Server closed');
     process.exit(0);
   });
 });
