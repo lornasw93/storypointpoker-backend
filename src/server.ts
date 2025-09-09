@@ -99,7 +99,7 @@ io.on('connection', (socket) => {
         });
       }
 
-      // Then send complete room state to ensure proper state synchronization
+      // Then send complete room state to ensure proper state synchronisation
       socket.emit('room-state', {
         room: {
           ...roomSummary,
