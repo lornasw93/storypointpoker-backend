@@ -91,20 +91,24 @@ io.on('connection', (socket) => {
         users
       });
 
-      // Send current room state to joining user
-      socket.emit('room-state', {
-        room: roomSummary,
-        users,
-        results: roomService.getVotingResults(roomId)
-      });
-
-      // If estimation is already started, send the estimation-started event to the new user
+      // First emit estimation started if applicable
       if (room.estimationStarted) {
         socket.emit('estimation-started', {
           users,
           results: roomService.getVotingResults(roomId)
         });
       }
+
+      // Then send complete room state to ensure proper state synchronization
+      socket.emit('room-state', {
+        room: {
+          ...roomSummary,
+          estimationStarted: room.estimationStarted,
+          votingRevealed: room.votingRevealed
+        },
+        users,
+        results: roomService.getVotingResults(roomId)
+      });
 
     } catch (error) {
       console.error('Error joining room:', error);
